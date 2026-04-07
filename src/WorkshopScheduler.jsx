@@ -35,6 +35,11 @@ function parseKey(key) {
 
 const STORAGE_KEY = "workshop-scheduler-v2";
 
+const BLOCKED_DATES = new Set([
+  "2026-07-15", "2026-07-16", "2026-07-17",
+  "2026-09-23", "2026-09-24", "2026-09-25",
+]);
+
 function generateMonths() {
   return [
     { year: 2026, month: 6 },  // 7월
@@ -149,6 +154,7 @@ export default function WorkshopScheduler() {
         if (dow !== 3) continue;
         if (new Date(year, month, d) < today) continue;
         const group = getWedThuFri(year, month, d);
+        if (group.some(k => BLOCKED_DATES.has(k))) continue;
         const groupKey = group.join("|");
         if (seen.has(groupKey)) continue;
         seen.add(groupKey);
@@ -353,6 +359,7 @@ export default function WorkshopScheduler() {
                     const dow = new Date(year, month, day).getDay();
                     const isWTF = dow >= 3 && dow <= 5;
                     const past = isPast(year, month, day);
+                    const blocked = BLOCKED_DATES.has(key);
                     const unavail = isUnavailable(key);
                     const info = getDateInfo(key);
                     const wtfGroup = isWTF ? getWedThuFri(year, month, day) : [];
@@ -361,7 +368,7 @@ export default function WorkshopScheduler() {
 
                     let bg = "transparent";
                     let border = "1px solid transparent";
-                    let textColor = past ? "#2a2a2a" : isWTF ? "#bbb" : "#383838";
+                    let textColor = (past || blocked) ? "#2a2a2a" : isWTF ? "#bbb" : "#383838";
                     let cursor = "default";
                     let borderRadius = "7px";
 
@@ -371,7 +378,7 @@ export default function WorkshopScheduler() {
                       else if (dow === 5) borderRadius = "2px 7px 7px 2px";
                     }
 
-                    if (isWTF && !past && loggedIn) {
+                    if (isWTF && !past && !blocked && loggedIn) {
                       cursor = "pointer";
                       if (unavail) {
                         bg = "rgba(255,85,85,0.14)";
@@ -382,7 +389,7 @@ export default function WorkshopScheduler() {
                         bg = unavail ? "rgba(255,85,85,0.22)" : "rgba(99,210,151,0.1)";
                         border = unavail ? "1px solid rgba(255,85,85,0.35)" : "1px solid rgba(99,210,151,0.25)";
                       }
-                    } else if (isWTF && !past && !loggedIn && totalUsers > 0) {
+                    } else if (isWTF && !past && !blocked && !loggedIn && totalUsers > 0) {
                       const ratio = info.unavailable.length / totalUsers;
                       if (ratio > 0) {
                         bg = `rgba(255,85,85,${0.03 + ratio * 0.15})`;
@@ -410,10 +417,10 @@ export default function WorkshopScheduler() {
                       <div
                         key={day}
                         onClick={() => {
-                          if (isWTF && !past && loggedIn) toggleWTFGroup(year, month, day);
+                          if (isWTF && !past && !blocked && loggedIn) toggleWTFGroup(year, month, day);
                         }}
                         onMouseEnter={() => {
-                          if (isWTF && !past) {
+                          if (isWTF && !past && !blocked) {
                             setHoveredGroup(wtfGroup);
                             setHoveredInfo({ key, year, month, day });
                           }
